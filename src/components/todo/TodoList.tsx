@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTodos } from '../../contexts/TodoContext';
 import { format, differenceInHours, differenceInMinutes, isAfter, addHours } from 'date-fns';
 import Animated, {
@@ -335,21 +335,33 @@ export function TodoList() {
 
   return (
     <View style={styles.container}>
-      {visibleCards.map((item, index) => (
-        <TodoCard
-          key={item.id}
-          item={item}
-          onSwipe={handleSwipe}
-          onDelete={() => handleDelete(item.id)}
-          zIndex={localTodos.length - index}
-          position={index}
-          scale={item.scale}
-          translateY={item.translateY}
-          isVisible={true}
-          animatedIndex={animatedIndex}
-          totalCards={localTodos.length}
-        />
-      ))}
+      {localTodos.length > 0 ? (
+        visibleCards.map((item, index) => (
+          <TodoCard
+            key={item.id}
+            item={item}
+            onSwipe={handleSwipe}
+            onDelete={() => handleDelete(item.id)}
+            zIndex={localTodos.length - index}
+            position={index}
+            scale={item.scale}
+            translateY={item.translateY}
+            isVisible={true}
+            animatedIndex={animatedIndex}
+            totalCards={localTodos.length}
+          />
+        ))
+      ) : (
+        <View style={styles.emptyContainer}>
+          <MaterialCommunityIcons 
+            name="playlist-plus" 
+            size={80} 
+            color="#CCCCCC" 
+          />
+          <Text style={styles.emptyText}>No Tasks Yet</Text>
+          <Text style={styles.emptySubtext}>Add a task to get started</Text>
+        </View>
+      )}
     </View>
   );
 }

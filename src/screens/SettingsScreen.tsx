@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSettings } from '../contexts/SettingsContext';
 import { Picker } from '@react-native-picker/picker';
+import { DarkModeShader } from '../components/shaders/DarkModeShader';
 
 export function SettingsScreen() {
   const { settings, updateSettings, isLoading } = useSettings();
@@ -36,112 +37,115 @@ export function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        <View style={styles.setting}>
-          <Text style={styles.settingLabel}>Enable Notifications</Text>
-          <Switch
-            value={settings.notifications.enabled}
-            onValueChange={(value) =>
-              handleSettingChange('notifications', {
-                ...settings.notifications,
-                enabled: value,
-              })
-            }
-          />
+    <View style={{ flex: 1 }}>
+      <DarkModeShader />
+      <ScrollView style={styles.container}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <View style={styles.setting}>
+            <Text style={styles.settingLabel}>Enable Notifications</Text>
+            <Switch
+              value={settings.notifications.enabled}
+              onValueChange={(value) =>
+                handleSettingChange('notifications', {
+                  ...settings.notifications,
+                  enabled: value,
+                })
+              }
+            />
+          </View>
+
+          {settings.notifications.enabled && (
+            <>
+              <View style={styles.setting}>
+                <Text style={styles.settingLabel}>Reminder Timing (hours)</Text>
+                <Picker
+                  selectedValue={settings.notifications.reminderTiming}
+                  style={styles.picker}
+                  onValueChange={(value) =>
+                    handleSettingChange('notifications', {
+                      ...settings.notifications,
+                      reminderTiming: value,
+                    })
+                  }
+                >
+                  <Picker.Item label="30 minutes" value={0.5} />
+                  <Picker.Item label="1 hour" value={1} />
+                  <Picker.Item label="2 hours" value={2} />
+                  <Picker.Item label="4 hours" value={4} />
+                  <Picker.Item label="1 day" value={24} />
+                </Picker>
+              </View>
+
+              <View style={styles.setting}>
+                <Text style={styles.settingLabel}>Sound</Text>
+                <Switch
+                  value={settings.notifications.sound}
+                  onValueChange={(value) =>
+                    handleSettingChange('notifications', {
+                      ...settings.notifications,
+                      sound: value,
+                    })
+                  }
+                />
+              </View>
+
+              <View style={styles.setting}>
+                <Text style={styles.settingLabel}>Vibration</Text>
+                <Switch
+                  value={settings.notifications.vibration}
+                  onValueChange={(value) =>
+                    handleSettingChange('notifications', {
+                      ...settings.notifications,
+                      vibration: value,
+                    })
+                  }
+                />
+              </View>
+            </>
+          )}
         </View>
 
-        {settings.notifications.enabled && (
-          <>
-            <View style={styles.setting}>
-              <Text style={styles.settingLabel}>Reminder Timing (hours)</Text>
-              <Picker
-                selectedValue={settings.notifications.reminderTiming}
-                style={styles.picker}
-                onValueChange={(value) =>
-                  handleSettingChange('notifications', {
-                    ...settings.notifications,
-                    reminderTiming: value,
-                  })
-                }
-              >
-                <Picker.Item label="30 minutes" value={0.5} />
-                <Picker.Item label="1 hour" value={1} />
-                <Picker.Item label="2 hours" value={2} />
-                <Picker.Item label="4 hours" value={4} />
-                <Picker.Item label="1 day" value={24} />
-              </Picker>
-            </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.setting}>
+            <Text style={styles.settingLabel}>Theme</Text>
+            <Picker
+              selectedValue={settings.theme}
+              style={styles.picker}
+              onValueChange={(value) => handleSettingChange('theme', value)}
+            >
+              <Picker.Item label="System" value="system" />
+              <Picker.Item label="Light" value="light" />
+              <Picker.Item label="Dark" value="dark" />
+            </Picker>
+          </View>
+        </View>
 
-            <View style={styles.setting}>
-              <Text style={styles.settingLabel}>Sound</Text>
-              <Switch
-                value={settings.notifications.sound}
-                onValueChange={(value) =>
-                  handleSettingChange('notifications', {
-                    ...settings.notifications,
-                    sound: value,
-                  })
-                }
-              />
-            </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Defaults</Text>
+          <View style={styles.setting}>
+            <Text style={styles.settingLabel}>Default Priority</Text>
+            <Picker
+              selectedValue={settings.defaultPriority}
+              style={styles.picker}
+              onValueChange={(value) => handleSettingChange('defaultPriority', value)}
+            >
+              <Picker.Item label="Low" value="low" />
+              <Picker.Item label="Medium" value="medium" />
+              <Picker.Item label="High" value="high" />
+            </Picker>
+          </View>
+        </View>
 
-            <View style={styles.setting}>
-              <Text style={styles.settingLabel}>Vibration</Text>
-              <Switch
-                value={settings.notifications.vibration}
-                onValueChange={(value) =>
-                  handleSettingChange('notifications', {
-                    ...settings.notifications,
-                    vibration: value,
-                  })
-                }
-              />
-            </View>
-          </>
+        {isSaving && (
+          <View style={styles.savingOverlay}>
+            <ActivityIndicator color="#fff" />
+            <Text style={styles.savingText}>Saving...</Text>
+          </View>
         )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
-        <View style={styles.setting}>
-          <Text style={styles.settingLabel}>Theme</Text>
-          <Picker
-            selectedValue={settings.theme}
-            style={styles.picker}
-            onValueChange={(value) => handleSettingChange('theme', value)}
-          >
-            <Picker.Item label="System" value="system" />
-            <Picker.Item label="Light" value="light" />
-            <Picker.Item label="Dark" value="dark" />
-          </Picker>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Defaults</Text>
-        <View style={styles.setting}>
-          <Text style={styles.settingLabel}>Default Priority</Text>
-          <Picker
-            selectedValue={settings.defaultPriority}
-            style={styles.picker}
-            onValueChange={(value) => handleSettingChange('defaultPriority', value)}
-          >
-            <Picker.Item label="Low" value="low" />
-            <Picker.Item label="Medium" value="medium" />
-            <Picker.Item label="High" value="high" />
-          </Picker>
-        </View>
-      </View>
-
-      {isSaving && (
-        <View style={styles.savingOverlay}>
-          <ActivityIndicator color="#fff" />
-          <Text style={styles.savingText}>Saving...</Text>
-        </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

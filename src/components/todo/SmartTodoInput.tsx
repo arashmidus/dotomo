@@ -1,3 +1,4 @@
+import React, { forwardRef } from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { 
   View, 
@@ -28,12 +29,12 @@ interface SmartTodoInputProps {
   onSubmit: (todo: ParsedTodo) => void;
 }
 
-export function SmartTodoInput({ onSubmit }: SmartTodoInputProps) {
+export const SmartTodoInput = forwardRef((props: SmartTodoInputProps, ref) => {
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_TEXTS[0]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const inputRef = useRef<TextInput>(null);
+  const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -43,6 +44,15 @@ export function SmartTodoInput({ onSubmit }: SmartTodoInputProps) {
       });
     }, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7
+    }).start();
   }, []);
 
   function handleSubmit() {
@@ -55,7 +65,7 @@ export function SmartTodoInput({ onSubmit }: SmartTodoInputProps) {
       priority: 'medium',
     };
 
-    onSubmit(parsedTodo);
+    props.onSubmit(parsedTodo);
     setInput('');
     Keyboard.dismiss();
   }
@@ -65,11 +75,16 @@ export function SmartTodoInput({ onSubmit }: SmartTodoInputProps) {
       style={[
         styles.container,
         isFocused && styles.containerFocused,
-        { transform: [{ scale: scaleAnim }] }
+        { 
+          transform: [
+            { scale: scaleAnim },
+            { translateY: slideAnim }
+          ] 
+        }
       ]}
     >
       <TextInput
-        ref={inputRef}
+        ref={ref}
         style={[styles.input, isFocused && styles.inputFocused]}
         value={input}
         onChangeText={setInput}
@@ -95,7 +110,7 @@ export function SmartTodoInput({ onSubmit }: SmartTodoInputProps) {
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

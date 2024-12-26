@@ -10,13 +10,26 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { SecureView } from './src/components/SecureView';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LogBox } from 'react-native';
+import { configureReanimatedLogger } from 'react-native-reanimated';
+
+LogBox.ignoreLogs([
+  "[Reanimated] Reading from `value` during component render"
+]);
+
+configureReanimatedLogger({
+  strict: false  // This disables strict mode warnings
+});
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <SafeAreaView 
+            style={{ flex: 1 }} 
+            edges={['right', 'left', 'bottom']} // Exclude bottom edge
+          >
             <Suspense fallback={<LoadingSpinner />}>
               <SQLiteProvider 
                 databaseName="todos.db"
