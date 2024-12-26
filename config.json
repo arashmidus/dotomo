@@ -13,11 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSFaceIDUsageDescription": "We need to use Face ID to securely authenticate you"
-      }
-      
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -29,16 +25,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      
-      "expo-sqlite",
-      [
-      "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID."
-        },
-        
-      ]
-      
+      "expo-sqlite"
     ]
   }
 }
