@@ -1,9 +1,10 @@
+import React from 'react';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { createContext, useContext, useReducer, useEffect, useCallback, useState } from 'react';
 import { z } from 'zod';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateReminder, generateTaskBreakdown } from '../services/LLMService';
+import { generateReminder, generateTaskBreakdown, generateTimingRecommendation } from '../services/LLMService';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -21,6 +22,11 @@ const TodoSchema = z.object({
   completedAt: z.date().optional(),
   taskList: z.array(z.string()).optional(),
   reminder: z.string().optional(),
+  llmAnalysis: z.object({
+    recommendedTime: z.string(),
+    reasoning: z.string(),
+    confidence: z.number()
+  }).optional(),
 });
 
 type Todo = z.infer<typeof TodoSchema>;
@@ -31,15 +37,17 @@ interface TodoContextType {
   toggleTodo: (id: string) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
   completeTodo: (id: string) => void;
+  updateTodo: (id: string, updates: Partial<Todo>) => Promise<void>;
 }
 
-const TodoContext = createContext<TodoContextType | undefined>(undefined);
+export const TodoContext = React.createContext<TodoContextType | undefined>(undefined);
 
 type TodoAction = 
   | { type: 'SET_TODOS'; payload: Todo[] }
   | { type: 'ADD_TODO'; payload: Todo }
   | { type: 'DELETE_TODO'; id: string }
-  | { type: 'COMPLETE_TODO'; id: string };
+  | { type: 'COMPLETE_TODO'; id: string }
+  | { type: 'UPDATE_TODO'; id: string; updates: Partial<Todo> };
 
 function todoReducer(state: Todo[], action: TodoAction): Todo[] {
   switch (action.type) {
@@ -54,6 +62,10 @@ function todoReducer(state: Todo[], action: TodoAction): Todo[] {
         todo.id === action.id 
           ? { ...todo, completed: true }
           : todo
+      );
+    case 'UPDATE_TODO':
+      return state.map(todo =>
+        todo.id === action.id ? { ...todo, ...action.updates } : todo
       );
     default:
       return state;
@@ -78,13 +90,16 @@ export function TodoProvider({ children }: { children: React.ReactNode }) {
     }
   }, [db]);
 
-  const addTodo = async (todoData: Omit<Todo, 'id' | 'createdAt' | 'taskList' | 'reminder'>) => {
+  const addTodo = async (todoData: Omit<Todo, 'id' | 'createdAt' | 'taskList' | 'reminder' | 'recommendedTime'>) => {
     try {
-      // First, generate a new todo with basic data
+      const timing = await generateTimingRecommendation(todoData);
+      
       const newTodo = {
         ...todoData,
         id: generateId(),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
+        completed: false,
+        recommendedTime: timing.recommendedTime,
       };
 
       // Generate content ONCE
@@ -124,6 +139,25 @@ export function TodoProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to delete todo:', error);
     }
   }, [db]);
+
+  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+    try {
+      dispatch({ type: 'UPDATE_TODO', id, updates });
+
+      // If you're using AsyncStorage, update there as well
+      const storedTodos = await AsyncStorage.getItem('todos');
+      if (storedTodos) {
+        const parsedTodos = JSON.parse(storedTodos);
+        const updatedTodos = parsedTodos.map(todo => 
+          todo.id === id ? { ...todo, ...updates } : todo
+        );
+        await AsyncStorage.setItem('todos', JSON.stringify(updatedTodos));
+      }
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     const initDatabase = async () => {
@@ -170,7 +204,8 @@ export function TodoProvider({ children }: { children: React.ReactNode }) {
       todos, 
       addTodo, 
       deleteTodo, 
-      completeTodo 
+      completeTodo,
+      updateTodo
     }}>
       {children}
     </TodoContext.Provider>

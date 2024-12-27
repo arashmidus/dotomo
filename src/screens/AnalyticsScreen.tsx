@@ -1,35 +1,92 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import { useTodos } from '../contexts/TodoContext'; // Assuming you have this context
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkModeShader } from '../components/shaders/DarkModeShader';
+import { useFocusEffect } from '@react-navigation/native';
+import { useTodos } from '../contexts/TodoContext';
 
 export function AnalyticsScreen() {
   const { todos } = useTodos();
+  const [analyticsData, setAnalyticsData] = React.useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    weeklyProgress: {
+      total: [0, 0, 0, 0, 0, 0, 0],
+      completed: [0, 0, 0, 0, 0, 0, 0]
+    }
+  });
+  const [selectedIndex, setSelectedIndex] = useState(null);
 
-  // Calculate total and completed tasks
-  const totalTasks = todos.length;
-  const completedTasks = todos.filter(todo => todo.completed).length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  useFocusEffect(
+    React.useCallback(() => {
+      function calculateAnalytics() {
+        const totalTasks = todos.length;
+        const completedTasks = todos.filter(todo => todo.completed).length;
 
-  // Mock data for the line chart (you can replace this with actual historical data)
+        // Get today's date and tasks
+        const now = new Date();
+        const todayIndex = (now.getDay() + 6) % 7; // Convert to Monday = 0, Sunday = 6
+
+        // Initialize arrays with zeros
+        const weeklyTotal = Array(7).fill(0);
+        const weeklyCompleted = Array(7).fill(0);
+
+        // Add tasks to their respective days
+        todos.forEach(todo => {
+          const todoDate = new Date(todo.createdAt || now);
+          const todoDay = (todoDate.getDay() + 6) % 7;
+          
+          // Only count tasks from the current week
+          const dayDiff = Math.floor((now - todoDate) / (1000 * 60 * 60 * 24));
+          if (dayDiff < 7) {
+            weeklyTotal[todoDay]++;
+            
+            if (todo.completed && todo.completedAt) {
+              const completedDate = new Date(todo.completedAt);
+              const completedDay = (completedDate.getDay() + 6) % 7;
+              weeklyCompleted[completedDay]++;
+            }
+          }
+        });
+
+        console.log('Today is day index:', todayIndex);
+        console.log('Weekly data:', weeklyTotal);
+
+        setAnalyticsData({
+          totalTasks,
+          completedTasks,
+          weeklyProgress: {
+            total: weeklyTotal,
+            completed: weeklyCompleted
+          }
+        });
+      }
+
+      calculateAnalytics();
+    }, [todos])
+  );
+
+  const completionRate = analyticsData.totalTasks > 0 
+    ? Math.round((analyticsData.completedTasks / analyticsData.totalTasks) * 100) 
+    : 0;
+
+  // Update the chart configuration
   const data = {
     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [
       {
-        data: [
-          completedTasks,
-          Math.max(completedTasks - 1, 0),
-          Math.max(completedTasks - 2, 0),
-          Math.max(completedTasks - 3, 0),
-          Math.max(completedTasks - 4, 0),
-          Math.max(completedTasks - 5, 0),
-          Math.max(completedTasks - 6, 0),
-        ].reverse(),
-        color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
+        data: analyticsData.weeklyProgress.total,
+        color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`, // Orange for total tasks
+        strokeWidth: 2
+      },
+      {
+        data: analyticsData.weeklyProgress.completed,
+        color: (opacity = 1) => `rgba(52, 199, 89, ${opacity})`, // Green for completed tasks
         strokeWidth: 2
       }
-    ]
+    ],
+    legend: ['Total Tasks', 'Completed']
   };
 
   return (
@@ -40,11 +97,11 @@ export function AnalyticsScreen() {
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Total Tasks</Text>
-          <Text style={styles.statNumber}>{totalTasks}</Text>
+          <Text style={styles.statNumber}>{analyticsData.totalTasks}</Text>
         </View>
         <View style={[styles.statBox, styles.middleStatBox]}>
           <Text style={styles.statLabel}>Completed</Text>
-          <Text style={styles.statNumber}>{completedTasks}</Text>
+          <Text style={styles.statNumber}>{analyticsData.completedTasks}</Text>
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Success Rate</Text>
@@ -55,40 +112,60 @@ export function AnalyticsScreen() {
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Weekly Progress</Text>
         <LineChart
+        
           data={data}
-          width={Dimensions.get('window').width - 88}
+          width={Dimensions.get('window').width - 64}
           height={220}
+          style={{ marginLeft: 0, backgroundColor: 'transparent' }}
           chartConfig={{
-            ...chartConfig,
-            propsForDots: {
-              r: '3',
-              strokeWidth: '2',
-              stroke: '#2E90FA'
-            }
+            backgroundColor: 'transparent',
+            backgroundGradientFrom: 'transparent',
+            backgroundGradientTo: 'transparent',
+            decimalPlaces: 0,
+            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.7})`,
+            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.7})`,
+            propsForBackgroundLines: {
+              strokeDasharray: "",
+              stroke: "rgba(255, 255, 255, 0.05)",
+            },
+            yAxisMin: 0,
+            yAxisMax: Math.max(...analyticsData.weeklyProgress.total),
+            paddingRight: 0,
+            paddingLeft: -40,
+            fillShadowGradientFrom: 'transparent',
+            fillShadowGradientTo: 'transparent',
           }}
-          bezier
-          style={{
-            borderRadius: 16,
-            marginLeft: -4,
-          }}
+          withVerticalLabels={true}
+          withHorizontalLabels={false}
+          withVerticalLines={false}
+          withHorizontalLines={false}
+          fromZero={true}
+          transparent={true}
         />
       </View>
     </View>
   );
 }
 
-const chartConfig = {
-  backgroundColor: 'transparent',
-  backgroundGradientFrom: 'transparent',
-  backgroundGradientTo: 'transparent',
-  decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(46, 144, 250, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.7})`,
-  strokeWidth: 2,
-  propsForBackgroundLines: {
-    strokeDasharray: "",
-    stroke: "rgba(255, 255, 255, 0.05)",
-  },
+const Tooltip = ({x, y, value, visible}) => {
+  if (!visible) return null;
+  
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: x - 20,
+        top: y - 28,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 6,
+        padding: 4,
+        minWidth: 30,
+        alignItems: 'center',
+      }}
+    >
+      <Text style={{ color: '#000', fontSize: 12 }}>{value}</Text>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

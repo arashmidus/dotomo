@@ -18,6 +18,34 @@ Tags: ${todo.tags.join(', ') || 'none'}
 Make it motivational and concise (under 70 characters). Focus on urgency and importance.`;
 }
 
+interface TimingRecommendation {
+  recommendedTime: string; // HH:mm format
+  reasoning: string;
+  confidence: number; // 0-1
+}
+
+function createTimingPrompt(todo: Todo): string {
+  return `Analyze this task and recommend the optimal notification time for tomorrow:
+Title: ${todo.title}
+Description: ${todo.description || 'N/A'}
+Due Date: ${format(todo.dueDate, 'PPP')}
+Priority: ${todo.priority}
+Tags: ${todo.tags.join(', ') || 'none'}
+
+Consider:
+1. Task urgency and importance
+2. Typical working hours (9am-5pm)
+3. Task complexity and preparation needs
+4. Human productivity patterns
+
+Respond in JSON format:
+{
+  "recommendedTime": "HH:mm",
+  "reasoning": "brief explanation",
+  "confidence": 0.0-1.0
+}`;
+}
+
 export async function generateReminder(todo: Todo): Promise<string> {
   const apiKey = Constants.expoConfig?.extra?.openAiKey;
   
@@ -138,5 +166,75 @@ Priority: ${todo.priority || 'medium'}`,
       'Review progress',
       'Complete and verify'
     ];
+  }
+}
+
+export async function generateTimingRecommendation(todo: Todo): Promise<TimingRecommendation> {
+  console.log('\n🔍 LLM Service - Generating Timing Recommendation');
+  console.log('📥 Received Todo:', {
+    title: todo.title,
+    dueDate: format(todo.dueDate, 'PPP HH:mm'),
+    priority: todo.priority,
+    tags: todo.tags
+  });
+
+  const apiKey = Constants.expoConfig?.extra?.openAiKey;
+  
+  if (!apiKey) {
+    console.log('❌ No API key found!');
+    LoggingService.error('OpenAI API key not found');
+    throw new Error('OpenAI API key is required');
+  }
+
+  try {
+    console.log('🤖 Sending request to OpenAI...');
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AI assistant that analyzes tasks and recommends optimal notification timing. Always respond in valid JSON format.',
+          },
+          {
+            role: 'user',
+            content: createTimingPrompt(todo),
+          },
+        ],
+        max_tokens: 150,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log('❌ API Response Error:', response.status);
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('📊 Raw API Response:', data);
+
+    const recommendation = JSON.parse(data.choices[0].message.content);
+    console.log('✅ Parsed Recommendation:', recommendation);
+    
+    return {
+      recommendedTime: recommendation.recommendedTime,
+      reasoning: recommendation.reasoning,
+      confidence: recommendation.confidence,
+    };
+  } catch (error) {
+    console.log('❌ Error in generateTimingRecommendation:', error);
+    LoggingService.error('Failed to generate timing recommendation:', { error, todoId: todo.id });
+    // Default to 9 AM if there's an error
+    return {
+      recommendedTime: "09:00",
+      reasoning: "Default morning reminder due to API error",
+      confidence: 0.5
+    };
   }
 } 

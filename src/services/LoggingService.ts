@@ -53,7 +53,16 @@ class LoggingServiceClass {
 
   private log(level: 'INFO' | 'ERROR' | 'WARN', message: string, data?: any) {
     try {
-      const timestamp = new Date().toISOString();
+      const timestamp = new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+      
       const logData = {
         timestamp,
         level,
@@ -62,18 +71,16 @@ class LoggingServiceClass {
         environment: this.environment,
       };
 
-      if (this.environment === 'development') {
-        const formattedData = JSON.stringify(logData.data, null, 2);
-        switch (level) {
-          case 'ERROR':
-            console.error(`[${timestamp}] ${message}:`, formattedData);
-            break;
-          case 'WARN':
-            console.warn(`[${timestamp}] ${message}:`, formattedData);
-            break;
-          default:
-            console.log(`[${timestamp}] ${message}:`, formattedData);
-        }
+      const formattedData = JSON.stringify(logData.data, null, 2);
+      switch (level) {
+        case 'ERROR':
+          console.error(`[${timestamp}] ${message}:`, formattedData);
+          break;
+        case 'WARN':
+          console.warn(`[${timestamp}] ${message}:`, formattedData);
+          break;
+        default:
+          console.log(`[${timestamp}] ${message}:`, formattedData);
       }
     } catch (err) {
       console.error('Logging failed:', err);

@@ -63,7 +63,7 @@ export function AddTodoScreen() {
     await addTodo(todo);
     
     if (settings.notifications.enabled) {
-      await NotificationService.sendImmediateNotification(todo, settings.notifications);
+      await NotificationService.scheduleSmartNotification(todo, settings.notifications);
     }
 
     navigation.goBack();

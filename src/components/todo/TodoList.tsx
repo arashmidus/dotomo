@@ -192,8 +192,30 @@ function formatSafeDate(date: Date | string | undefined): string {
   }
 }
 
+// Add this helper function
+function getDueDate(createdAt: string | Date): string {
+  const startDate = new Date(createdAt);
+  const dueDate = addHours(startDate, 24);
+  return formatSafeDate(dueDate);
+}
+
+// Modify this helper function to get the reminder time
+function getScheduledReminderTime(todo) {
+  // Check for llmAnalysis first
+  if (!todo.llmAnalysis?.recommendedTime) {
+    return 'Scheduling...';
+  }
+  
+  try {
+    return todo.llmAnalysis.recommendedTime; // Simply return the recommendedTime string
+  } catch (error) {
+    console.error('Error formatting reminder time:', error);
+    return 'Invalid time';
+  }
+}
+
 export function TodoList() {
-  const { todos, deleteTodo } = useTodos();
+  const { todos, deleteTodo, updateTodo } = useTodos();
   const [localTodos, setLocalTodos] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentIndex, setCurrentIndex] = React.useState(0);
@@ -310,6 +332,30 @@ export function TodoList() {
     }
   };
 
+  const handleComplete = async (todoId: string) => {
+    try {
+      // Update the todo in context/main storage
+      await updateTodo(todoId, { completed: true, completedAt: new Date().toISOString() });
+      
+      // Update local state
+      setLocalTodos(prev => prev.map(todo => 
+        todo.id === todoId 
+          ? { ...todo, completed: true, completedAt: new Date().toISOString() }
+          : todo
+      ));
+      
+      // Update AsyncStorage
+      const updatedTodos = localTodos.map(todo =>
+        todo.id === todoId 
+          ? { ...todo, completed: true, completedAt: new Date().toISOString() }
+          : todo
+      );
+      await AsyncStorage.setItem('todos', JSON.stringify(updatedTodos));
+    } catch (error) {
+      console.error('Error completing todo:', error);
+    }
+  };
+
   // Memoize visible cards calculation
   const visibleCards = React.useMemo(() => {
     if (!localTodos.length) return [];
@@ -342,6 +388,7 @@ export function TodoList() {
             item={item}
             onSwipe={handleSwipe}
             onDelete={() => handleDelete(item.id)}
+            onComplete={() => handleComplete(item.id)}
             zIndex={localTodos.length - index}
             position={index}
             scale={item.scale}
@@ -370,6 +417,7 @@ function TodoCard({
   item, 
   onSwipe,
   onDelete,
+  onComplete,
   zIndex, 
   position,
   scale,
@@ -386,15 +434,21 @@ function TodoCard({
   const shaderTime = useSharedValue(0);
   const swipeProgress = useSharedValue(0);
 
-  // Only handle timer updates - NO CONTENT GENERATION HERE
+  // Modified timer effect
   React.useEffect(() => {
     const startTime = item.createdAt ? new Date(item.createdAt) : new Date();
-    const expiryTime = addHours(startTime, 18);
+    const expiryTime = addHours(startTime, 24);
 
     const updateTimer = () => {
       const now = new Date();
       const diffInSeconds = Math.max(0, (expiryTime.getTime() - now.getTime()) / 1000);
       
+      // If timer has expired, delete the todo
+      if (diffInSeconds <= 0) {
+        runOnJS(onDelete)();
+        return;
+      }
+
       const hours = Math.floor(diffInSeconds / 3600);
       const minutes = Math.floor((diffInSeconds % 3600) / 60);
       const seconds = Math.floor(diffInSeconds % 60);
@@ -411,7 +465,7 @@ function TodoCard({
     updateTimer();
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
-  }, [item]);
+  }, [item, onDelete]);
 
   const resetPosition = () => {
     isReentering.value = true;
@@ -516,6 +570,11 @@ function TodoCard({
     cardTranslateY.value = withSpring(translateY, SPRING_CONFIG);
   }, [scale, translateY]);
 
+  const handleCompleteSwipe = () => {
+    onComplete();
+    onSwipe('right');
+  };
+
   return (
     <PanGestureHandler onGestureEvent={panGesture}>
       <Animated.View style={[styles.card, cardStyle, { zIndex }]}>
@@ -544,8 +603,9 @@ function TodoCard({
               styles.todoDate,
               item.completed && styles.completedText
             ]}>
-              {item.completed ? 'Completed on:' : 'Due:'} {
-                formatSafeDate(item.completed ? item.completedAt : item.dueDate)
+              {item.completed 
+                ? `Completed on: ${formatSafeDate(item.completedAt)}` 
+                : `Reminder scheduled for: ${getScheduledReminderTime(item)}`
               }
             </Text>
             {!item.completed && (
@@ -603,7 +663,7 @@ function TodoCard({
 
           <TouchableOpacity 
             style={[styles.button, styles.completeButton]}
-            onPress={() => onSwipe('right')}
+            onPress={handleCompleteSwipe}
           >
             <MaterialIcons name="check" size={24} color="white" />
             <Text style={styles.buttonText}>Complete</Text>
