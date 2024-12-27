@@ -118,6 +118,15 @@ export class NotificationService {
       console.log('\n🎯 SCHEDULING ATTEMPT:');
       console.log('Intended time:', notificationTime.toLocaleString());
 
+      // Calculate seconds from now until notification time
+      const secondsUntilNotification = Math.floor((notificationTime.getTime() - Date.now()) / 1000);
+
+      console.log('Using seconds-based trigger:', {
+        secondsUntilNotification,
+        fromTime: new Date().toLocaleString(),
+        targetTime: notificationTime.toLocaleString()
+      });
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: `[Test] Task Reminder: ${todo.title}`,
@@ -132,10 +141,20 @@ export class NotificationService {
           badge: 1,
         },
         trigger: {
-          type: 'date',
-          date: notificationTime.getTime(),
+          type: 'timeInterval',  // Changed from 'date' to 'timeInterval'
+          seconds: secondsUntilNotification,  // Use seconds from now
           channelId: Platform.OS === 'android' ? 'default' : undefined,
-        } as Notifications.NotificationTriggerInput,
+        },
+      });
+
+      // Add this debug log right after scheduling
+      const scheduledNotifs = await Notifications.getAllScheduledNotificationsAsync();
+      const thisNotif = scheduledNotifs.find(n => n.content.data?.todoId === todo.id);
+      console.log('IMMEDIATE VERIFICATION:', {
+        found: !!thisNotif,
+        scheduledTrigger: thisNotif?.trigger,
+        expectedTimestamp: notificationTime.getTime(),
+        expectedDate: new Date(notificationTime).toLocaleString()
       });
 
       // 1. Verify immediate scheduling success
