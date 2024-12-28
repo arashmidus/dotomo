@@ -12,9 +12,10 @@ import { View } from 'react-native';
 import { TransitionPresets } from '@react-navigation/stack';
 import { Dimensions } from 'react-native';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 function TabNavigator({ navigation }) {
   const handleAddPress = async () => {
@@ -156,6 +157,15 @@ export function AppNavigator() {
             component={AddTodoScreen}
             options={{
               presentation: 'transparentModal',
+              headerShown: false,
+              cardStyle: { backgroundColor: 'transparent' }
+            }}
+          />
+          <Stack.Screen
+            name="SettingsScreen"
+            component={SettingsScreen}
+            options={{
+              presentation: 'card',
               headerShown: false,
               cardStyle: { backgroundColor: 'transparent' }
             }}

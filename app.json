@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSFaceIDUsageDescription": "We need to use Face ID to securely authenticate you"
+        "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to use Face ID for secure and quick access to your account."
       },
       "bundleIdentifier": "com.anonymous.todoapp"
     },
@@ -39,7 +39,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID."
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for secure and quick access to your account."
         }
       ],
       [

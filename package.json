@@ -11,7 +11,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.2.0",
-    "@react-native-picker/picker": "2.6.1",
+    "@react-native-picker/picker": "^2.9.0",
     "@react-native-voice/voice": "^3.2.4",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
@@ -19,6 +19,7 @@
     "@react-navigation/stack": "^7.1.1",
     "date-fns": "^4.1.0",
     "expo": "~52.0.20",
+    "expo-blur": "~14.0.1",
     "expo-constants": "~17.0.3",
     "expo-device": "~7.0.1",
     "expo-env": "^1.1.1",
@@ -29,7 +30,7 @@
     "expo-local-authentication": "~15.0.1",
     "expo-notifications": "~0.29.11",
     "expo-speech": "~13.0.0",
-    "expo-sqlite": "~15.0.3",
+    "expo-sqlite": "^15.0.4",
     "expo-status-bar": "~2.0.0",
     "gl-react": "^5.2.0",
     "gl-react-native": "^5.2.1",
@@ -40,11 +41,11 @@
     "react-native-gifted-charts": "^1.4.49",
     "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "4.12.0",
-    "react-native-screens": "~4.1.0",
+    "react-native-screens": "^4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-webgl": "^0.8.0",
     "zod": "^3.24.1",
-    "expo-blur": "~14.0.1"
+    "expo-intent-launcher": "~12.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

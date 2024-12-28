@@ -12,6 +12,9 @@ interface AppSettings {
   notifications: NotificationPreferences;
   theme: 'light' | 'dark' | 'system';
   defaultPriority: 'low' | 'medium' | 'high';
+  biometricEnabled: boolean;
+  biometricTimeout: number;
+  appLockEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -23,6 +26,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   theme: 'system',
   defaultPriority: 'medium',
+  biometricEnabled: false,
+  biometricTimeout: 0,
+  appLockEnabled: false,
 };
 
 interface SettingsContextType {

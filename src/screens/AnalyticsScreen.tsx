@@ -86,7 +86,7 @@ export function AnalyticsScreen() {
         strokeWidth: 2
       }
     ],
-    legend: ['Total Tasks', 'Completed']
+    legend: ['Total Tasks', 'Completed Tasks']
   };
 
   return (
@@ -100,7 +100,7 @@ export function AnalyticsScreen() {
           <Text style={styles.statNumber}>{analyticsData.totalTasks}</Text>
         </View>
         <View style={[styles.statBox, styles.middleStatBox]}>
-          <Text style={styles.statLabel}>Completed</Text>
+          <Text style={styles.statLabel}>Completed Tasks</Text>
           <Text style={styles.statNumber}>{analyticsData.completedTasks}</Text>
         </View>
         <View style={styles.statBox}>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.5)',
     fontWeight: '500',
     marginBottom: 8,
