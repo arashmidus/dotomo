@@ -13,7 +13,6 @@ function createPrompt(todo: Todo): string {
 Title: ${todo.title}
 Description: ${todo.description || 'N/A'}
 Due Date: ${format(todo.dueDate, 'PPP')}
-Priority: ${todo.priority}
 Tags: ${todo.tags.join(', ') || 'none'}
 
 Make it motivational and concise (under 70 characters). Focus on urgency and importance.`;
@@ -26,33 +25,33 @@ interface TimingRecommendation {
 }
 
 function createTimingPrompt(todo: Todo, settings?: AppSettings): string {
-  // Default schedule if settings are not provided
-  const defaultSettings = {
-    wakeUpTime: "07:00",
-    bedTime: "22:00",
-    workStartTime: "09:00",
-    workEndTime: "17:00"
-  };
-
-  // Use settings if provided, otherwise fall back to defaults
-  const schedule = settings || defaultSettings;
+  if (!settings) {
+    console.log('⚠️ No settings provided, using context defaults');
+    return ''; // Or handle this case differently
+  }
 
   const formatTimeValue = (time: string) => {
     if (!time) return 'Not set';
     return time.includes(':') ? time : `${time}:00`;
   };
 
+  console.log('================ 📅 USER SCHEDULE ================');
+  console.log(`🌅 Wake Up:     ${formatTimeValue(settings.wakeUpTime)}`);
+  console.log(`🌙 Bed Time:    ${formatTimeValue(settings.bedTime)}`);
+  console.log(`💼 Work Start:  ${formatTimeValue(settings.workStartTime)}`);
+  console.log(`🏡 Work End:    ${formatTimeValue(settings.workEndTime)}`);
+  console.log('===============================================');
+
   return `Analyze this task and recommend the optimal notification time for tomorrow:
 Title: ${todo.title}
 Description: ${todo.description || 'N/A'}
 Due Date: ${format(todo.dueDate, 'PPP')}
-Priority: ${todo.priority}
 Tags: ${todo.tags.join(', ') || 'none'}
 
 User Schedule:
-- Wake up time: ${formatTimeValue(schedule.wakeUpTime)}
-- Bed time: ${formatTimeValue(schedule.bedTime)}
-- Work hours: ${formatTimeValue(schedule.workStartTime)} to ${formatTimeValue(schedule.workEndTime)}
+- Wake up time: ${formatTimeValue(settings.wakeUpTime)}
+- Bed time: ${formatTimeValue(settings.bedTime)}
+- Work hours: ${formatTimeValue(settings.workStartTime)} to ${formatTimeValue(settings.workEndTime)}
 
 Consider:
 1. Task urgency and importance
@@ -192,6 +191,12 @@ Priority: ${todo.priority || 'medium'}`,
 }
 
 export async function generateTimingRecommendation(todo: Todo, settings?: AppSettings): Promise<TimingRecommendation> {
+  if (!settings) {
+    console.warn('No settings provided to generateTimingRecommendation');
+    // Use the default settings from SettingsContext
+    settings = DEFAULT_SETTINGS;
+  }
+
   console.log('\n🔍 LLM Service - Generating Timing Recommendation');
   console.log('📥 User Schedule Settings:', settings || 'Using default schedule');
   

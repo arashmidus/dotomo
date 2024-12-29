@@ -51,63 +51,53 @@ const FRAGMENT_SHADER = `
   uniform float uTime;
   uniform float uSwipe;
   
-  // Simplex noise function
-  vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-  vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-  vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
-  
-  float snoise(vec2 v) {
-    const vec4 C = vec4(0.211324865405187,
-                        0.366025403784439,
-                       -0.577350269189626,
-                        0.024390243902439);
-    vec2 i  = floor(v + dot(v, C.yy) );
-    vec2 x0 = v -   i + dot(i, C.xx);
-    vec2 i1;
-    i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-    vec4 x12 = x0.xyxy + C.xxzz;
-    x12.xy -= i1;
-    i = mod289(i);
-    vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
-      + i.x + vec3(0.0, i1.x, 1.0 ));
-    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
-      dot(x12.zw,x12.zw)), 0.0);
-    m = m*m ;
-    m = m*m ;
-    vec3 x = 2.0 * fract(p * C.www) - 1.0;
-    vec3 h = abs(x) - 0.5;
-    vec3 ox = floor(x + 0.5);
-    vec3 a0 = x - ox;
-    m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
-    vec3 g;
-    g.x  = a0.x  * x0.x  + h.x  * x0.y;
-    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-    return 130.0 * dot(m, g);
-  }
-  
+  // Modern, dreamy color palette
+  const vec3 skyBlue = vec3(0.85, 0.91, 1.0);      // #D9E8FF - soft sky blue
+  const vec3 lavender = vec3(0.93, 0.91, 0.99);    // #EDE8FD - gentle lavender
+  const vec3 mintGreen = vec3(0.90, 0.99, 0.97);   // #E5FDF8 - fresh mint
+  const vec3 peach = vec3(1.0, 0.95, 0.93);        // #FFF2EE - soft peach
+
   void main() {
     vec2 uv = vTexCoord;
+    float t = uTime * 0.015; // Super slow, dreamy movement
     
-    // Base gradient
-    vec3 color1 = vec3(0.98, 0.98, 1.0);
-    vec3 color2 = vec3(0.95, 0.97, 1.0);
+    // Create organic flowing movement
+    vec2 flow = vec2(
+      sin(t + uv.x * 2.0) * cos(t * 0.4) * 0.3,
+      cos(t * 0.8 + uv.y * 2.0) * sin(t * 0.3) * 0.3
+    );
     
-    // Animated noise
-    float noise = snoise(uv * 3.0 + uTime * 0.2);
+    vec2 distortedUV = uv + flow;
     
-    // Dynamic gradient with noise
-    float gradient = smoothstep(0.0, 1.0, uv.y + noise * 0.2);
+    // Create smooth, flowing color transitions
+    float noise1 = sin(distortedUV.x * 3.0 + distortedUV.y * 2.0 + t) * 0.5 + 0.5;
+    float noise2 = cos(distortedUV.y * 2.0 - distortedUV.x * 3.0 - t * 1.2) * 0.5 + 0.5;
     
-    // Swipe effect
-    float swipeEffect = sin(uv.x * 6.28 + uTime) * uSwipe;
+    // Blend the colors in a more interesting way
+    vec3 gradient = skyBlue;
+    gradient = mix(gradient, lavender, 
+      smoothstep(0.3, 0.7, noise1) * 0.4
+    );
+    gradient = mix(gradient, mintGreen, 
+      smoothstep(0.4, 0.6, noise2) * 0.3
+    );
+    gradient = mix(gradient, peach,
+      smoothstep(0.45, 0.55, (noise1 + noise2) * 0.5) * 0.2
+    );
     
-    // Final color
-    vec3 finalColor = mix(color1, color2, gradient + swipeEffect);
+    // Add a subtle sparkle effect
+    float sparkle = sin(uv.x * 40.0 + t) * sin(uv.y * 40.0 - t);
+    sparkle = pow(max(0.0, sparkle), 20.0) * 0.03;
     
-    // Add subtle shimmer
-    finalColor += vec3(0.02) * sin(uTime * 2.0 + uv.y * 10.0);
+    // Add very subtle swipe response
+    float swipeEffect = sin(distortedUV.x * 3.14 + t) * uSwipe * 0.02;
     
-    gl_FragColor = vec4(finalColor, 1.0);
+    // Combine everything with a dreamy softness
+    gradient += vec3(sparkle + swipeEffect);
+    gradient = mix(gradient, vec3(1.0), 0.1); // Add slight brightness
+    gradient = smoothstep(0.0, 1.0, gradient); // Extra smoothing
+    
+    gl_FragColor = vec4(gradient, 1.0);
   }
 `;
 
@@ -586,60 +576,67 @@ function TodoCard({
         </View>
         
         <View style={[styles.todoContent, { backgroundColor: 'transparent' }]}>
-          <View style={styles.titleContainer}>
-            <Text style={[
-              styles.todoTitle,
-              item.completed && styles.completedTitle
-            ]}>
-              {item.title}
-            </Text>
+          <View style={styles.cardHeader}>
+            <View style={styles.titleContainer}>
+              <Text style={[
+                styles.todoTitle,
+                item.completed && styles.completedTitle
+              ]}>
+                {item.title}
+              </Text>
+            </View>
             <Text style={styles.itemCounter}>
               {`${item.orderNumber}/${totalCards}`}
             </Text>
           </View>
 
-          <View style={styles.dateTimeContainer}>
-            <Text style={[
-              styles.todoDate,
-              item.completed && styles.completedText
-            ]}>
-              {item.completed 
-                ? `Completed on: ${formatSafeDate(item.completedAt)}` 
-                : `Reminder scheduled for: ${getScheduledReminderTime(item)}`
-              }
-            </Text>
-            {!item.completed && (
-              <Text style={styles.timerText}>
-                {timeRemaining || '18:00:00'}
+          <View style={styles.infoContainer}>
+            <View style={styles.reminderBox}>
+              <MaterialIcons name="access-time" size={16} color="#666" />
+              <Text style={styles.reminderText}>
+                {item.completed 
+                  ? `Completed on: ${formatSafeDate(item.completedAt)}` 
+                  : `Reminder: ${getScheduledReminderTime(item)}`
+                }
               </Text>
+            </View>
+            {!item.completed && (
+              <View style={styles.timerBox}>
+                <MaterialIcons name="timer" size={16} color="#FF5722" />
+                <Text style={styles.timerText}>
+                  {timeRemaining || '18:00:00'}
+                </Text>
+              </View>
             )}
           </View>
 
-          {item.completed ? (
-            <View style={styles.completedContainer}>
-              <MaterialIcons name="check-circle" size={120} color="#4CAF50" />
-              <Text style={styles.completedMessage}>Task Complete!</Text>
-            </View>
-          ) : (
-            <>
-              {item.description && (
-                <Text style={styles.todoDescription}>
-                  {item.description}
-                </Text>
-              )}
+          <View style={styles.mainContent}>
+            {item.completed ? (
+              <View style={styles.completedContainer}>
+                <MaterialIcons name="check-circle" size={120} color="#4CAF50" />
+                <Text style={styles.completedMessage}>Task Complete!</Text>
+              </View>
+            ) : (
+              <>
+                {item.description && (
+                  <Text style={styles.todoDescription}>
+                    {item.description}
+                  </Text>
+                )}
 
-              {item.taskList && item.taskList.length > 0 && (
-                <View style={styles.taskListContainer}>
-                  {item.taskList.map((task, index) => (
-                    <View key={index} style={styles.taskItem}>
-                      <MaterialIcons name="chevron-right" size={16} color="#666" />
-                      <Text style={styles.taskText}>{task}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
+                {item.taskList && item.taskList.length > 0 && (
+                  <View style={styles.taskListContainer}>
+                    {item.taskList.map((task, index) => (
+                      <View key={index} style={styles.taskItem}>
+                        <MaterialIcons name="chevron-right" size={16} color="#666" />
+                        <Text style={styles.taskText}>{task}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
 
           {item.tags.length > 0 && (
             <View style={styles.tagContainer}>
@@ -658,7 +655,6 @@ function TodoCard({
             onPress={() => onDelete()}
           >
             <MaterialIcons name="delete" size={24} color="white" />
-            {/* <Text style={styles.buttonText}>Delete</Text> */}
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -704,13 +700,10 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     backgroundColor: 'transparent',
     borderRadius: 20,
-    padding: 20,
+    padding: 16,
     elevation: 5,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     backfaceVisibility: 'hidden',
@@ -719,94 +712,133 @@ const styles = StyleSheet.create({
   },
   todoContent: {
     flex: 1,
-    marginBottom: 60, // Add space for buttons
-    backgroundColor: 'transparent',
+    marginBottom: 60,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   todoTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 12,
+    fontWeight: '700',
+    color: '#2C3E50',
+    letterSpacing: 0.25,
   },
-  todoDescription: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 12,
-  },
-  todoDate: {
+  itemCounter: {
     fontSize: 14,
-    color: '#666',
-  },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  tag: {
-    backgroundColor: '#E3F2FD',
+    color: '#7F8C8D',
+    fontWeight: '600',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
   },
-  tagText: {
-    fontSize: 12,
-    color: '#2196F3',
+  infoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  todoSummary: {
-    fontSize: 18,
-    fontStyle: 'italic',
-    color: '#444',
-    marginBottom: 12,
-    backgroundColor: '#f5f5f5',
-    padding: 10,
+  reminderBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  reminderText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 6,
+  },
+  timerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  timerText: {
+    fontSize: 14,
+    fontFamily: 'monospace',
+    color: '#FF5722',
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  mainContent: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  todoDescription: {
+    fontSize: 16,
+    color: '#34495E',
+    lineHeight: 24,
+    marginBottom: 16,
   },
   taskListContainer: {
-    marginBottom: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 12,
     padding: 12,
+    marginBottom: 16,
   },
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
   taskText: {
-    fontSize: 16,
-    color: '#444',
+    fontSize: 15,
+    color: '#2C3E50',
     marginLeft: 8,
     flex: 1,
   },
-  timerText: {
-    fontSize: 16,
-    fontFamily: 'monospace',
-    color: '#FF5722',
+  tagContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  tag: {
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagText: {
+    fontSize: 13,
+    color: '#2196F3',
     fontWeight: '500',
-    backgroundColor: '#f8f8f8',
-    padding: 8,
-    borderRadius: 4,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
+    bottom: 16,
+    left: 16,
+    right: 16,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 25,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
@@ -815,18 +847,13 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     backgroundColor: '#4CAF50',
+    paddingRight: 20,
   },
   buttonText: {
     color: 'white',
     marginLeft: 8,
     fontSize: 16,
-    fontWeight: '500',
-  },
-  dateTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    fontWeight: '600',
   },
   completedContainer: {
     flex: 1,
@@ -839,29 +866,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4CAF50',
     marginTop: 16,
-    textAlign: 'center',
-  },
-  completedCard: {
-    backgroundColor: '#F5F5F5',
-    opacity: 0.9,
   },
   completedTitle: {
     textDecorationLine: 'line-through',
-    color: '#666',
-  },
-  completedText: {
-    color: '#888',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  itemCounter: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-    marginLeft: 12,
+    color: '#95A5A6',
   },
 }); 

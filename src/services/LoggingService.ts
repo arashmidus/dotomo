@@ -72,18 +72,20 @@ class LoggingServiceClass {
       };
 
       const formattedData = JSON.stringify(logData.data, null, 2);
+      const separator = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      
       switch (level) {
         case 'ERROR':
-          console.error(`[${timestamp}] ${message}`);
+          console.error(`\n${separator}\n❌ [${timestamp}] ERROR: ${message}\n${formattedData}\n${separator}\n`);
           break;
         case 'WARN':
-          console.warn(`[${timestamp}] ${message}:`, formattedData);
+          console.warn(`\n${separator}\n⚠️  [${timestamp}] WARNING: ${message}\n${formattedData}\n${separator}\n`);
           break;
         default:
-          console.log(`[${timestamp}] ${message}:`, formattedData);
+          console.log(`\n${separator}\n📝 [${timestamp}] INFO: ${message}\n${formattedData}\n${separator}\n`);
       }
     } catch (err) {
-      console.error('Logging failed:', err);
+      console.error('❌ Logging failed:', err);
     }
   }
 }

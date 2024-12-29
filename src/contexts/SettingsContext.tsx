@@ -8,7 +8,7 @@ interface NotificationPreferences {
   vibration: boolean;
 }
 
-interface AppSettings {
+export interface AppSettings {
   notifications: NotificationPreferences;
   theme: 'light' | 'dark' | 'system';
   defaultPriority: 'low' | 'medium' | 'high';

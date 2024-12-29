@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "todo-app",
-    "slug": "todo-app",
+    "name": "Dotomo",
+    "slug": "dotomo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "com.yourusername.todoapp",
+      "bundleIdentifier": "com.dotomo.app",
       "infoPlist": {
         "NSFaceIDUsageDescription": "We need to use Face ID to securely authenticate you"
       }
@@ -36,7 +36,13 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ],
-      "package": "com.anonymous.todoapp"
+      "package": "com.dotomo.app"
+    },
+    "extra": {
+      "environment": "development",
+      "eas": {
+        "projectId": "876bbb17-33fe-46ff-b86b-8814629318a3"
+      }
     }
   }
 }

@@ -18,54 +18,81 @@ export function AnalyticsScreen() {
   });
   const [selectedIndex, setSelectedIndex] = useState(null);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      function calculateAnalytics() {
-        const totalTasks = todos.length;
-        const completedTasks = todos.filter(todo => todo.completed).length;
+  React.useEffect(() => {
+    console.log('\n📊 ==================== ANALYTICS ====================');
+    console.log('📝 Current Todos:', todos);
+    
+    // Reset analytics if there are no todos
+    if (!todos || todos.length === 0) {
+      console.log('❌ No todos available - Resetting analytics');
+      setAnalyticsData({
+        totalTasks: 0,
+        completedTasks: 0,
+        weeklyProgress: {
+          total: [0, 0, 0, 0, 0, 0, 0],
+          completed: [0, 0, 0, 0, 0, 0, 0]
+        }
+      });
+      return;
+    }
 
-        // Get today's date and tasks
-        const now = new Date();
-        const todayIndex = (now.getDay() + 6) % 7; // Convert to Monday = 0, Sunday = 6
+    function calculateAnalytics() {
+      const totalTasks = todos.length;
+      const completedTasks = todos.filter(todo => todo.completed).length;
+      console.log('📈 Total Tasks:', totalTasks);
+      console.log('✅ Completed Tasks:', completedTasks);
 
-        // Initialize arrays with zeros
-        const weeklyTotal = Array(7).fill(0);
-        const weeklyCompleted = Array(7).fill(0);
+      // Get today's date
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+      startOfWeek.setHours(0, 0, 0, 0);
+      console.log('📅 Start of Week:', startOfWeek);
 
-        // Add tasks to their respective days
-        todos.forEach(todo => {
-          const todoDate = new Date(todo.createdAt || now);
-          const todoDay = (todoDate.getDay() + 6) % 7;
+      // Initialize arrays
+      const weeklyTotal = Array(7).fill(0);
+      const weeklyCompleted = Array(7).fill(0);
+
+      // Process each todo
+      todos.forEach(todo => {
+        const createdDate = new Date(todo.createdAt);
+        console.log(`📌 Processing Todo: ${todo.title}`);
+        console.log(`   Created: ${createdDate}`);
+        
+        // Only count tasks from current week
+        if (createdDate >= startOfWeek) {
+          const dayIndex = (createdDate.getDay() + 6) % 7;
+          weeklyTotal[dayIndex]++;
+          console.log(`   Added to day ${dayIndex} (total: ${weeklyTotal[dayIndex]})`);
           
-          // Only count tasks from the current week
-          const dayDiff = Math.floor((now - todoDate) / (1000 * 60 * 60 * 24));
-          if (dayDiff < 7) {
-            weeklyTotal[todoDay]++;
-            
-            if (todo.completed && todo.completedAt) {
-              const completedDate = new Date(todo.completedAt);
-              const completedDay = (completedDate.getDay() + 6) % 7;
-              weeklyCompleted[completedDay]++;
+          if (todo.completed && todo.completedAt) {
+            const completedDate = new Date(todo.completedAt);
+            console.log(`   Completed: ${completedDate}`);
+            if (completedDate >= startOfWeek) {
+              const completedDayIndex = (completedDate.getDay() + 6) % 7;
+              weeklyCompleted[completedDayIndex]++;
+              console.log(`   Added to completed day ${completedDayIndex} (total: ${weeklyCompleted[completedDayIndex]})`);
             }
           }
-        });
+        }
+      });
 
-        console.log('Today is day index:', todayIndex);
-        console.log('Weekly data:', weeklyTotal);
+      console.log('📊 Weekly Totals:', weeklyTotal);
+      console.log('✅ Weekly Completed:', weeklyCompleted);
 
-        setAnalyticsData({
-          totalTasks,
-          completedTasks,
-          weeklyProgress: {
-            total: weeklyTotal,
-            completed: weeklyCompleted
-          }
-        });
-      }
+      setAnalyticsData({
+        totalTasks,
+        completedTasks,
+        weeklyProgress: {
+          total: weeklyTotal,
+          completed: weeklyCompleted
+        }
+      });
+    }
 
-      calculateAnalytics();
-    }, [todos])
-  );
+    calculateAnalytics();
+    console.log('=====================================================\n');
+  }, [todos]);
 
   const completionRate = analyticsData.totalTasks > 0 
     ? Math.round((analyticsData.completedTasks / analyticsData.totalTasks) * 100) 
@@ -112,11 +139,9 @@ export function AnalyticsScreen() {
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Weekly Progress</Text>
         <LineChart
-        
           data={data}
           width={Dimensions.get('window').width - 64}
           height={220}
-          style={{ marginLeft: 0, backgroundColor: 'transparent' }}
           chartConfig={{
             backgroundColor: 'transparent',
             backgroundGradientFrom: 'transparent',
@@ -129,9 +154,9 @@ export function AnalyticsScreen() {
               stroke: "rgba(255, 255, 255, 0.05)",
             },
             yAxisMin: 0,
-            yAxisMax: Math.max(...analyticsData.weeklyProgress.total),
+            yAxisMax: Math.max(...analyticsData.weeklyProgress.total, 1),
             paddingRight: 0,
-            paddingLeft: -40,
+            paddingLeft: 0,
             fillShadowGradientFrom: 'transparent',
             fillShadowGradientTo: 'transparent',
           }}
@@ -141,6 +166,10 @@ export function AnalyticsScreen() {
           withHorizontalLines={false}
           fromZero={true}
           transparent={true}
+          style={{
+            marginLeft: -16,
+            backgroundColor: 'transparent',
+          }}
         />
       </View>
     </View>
@@ -172,7 +201,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#000',
     paddingTop: 48,
   },
   screenTitle: {
@@ -218,6 +247,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
+    width: Dimensions.get('window').width - 48,
+    alignSelf: 'center',
   },
   chartTitle: {
     fontSize: 16,
@@ -226,5 +257,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
 }); 

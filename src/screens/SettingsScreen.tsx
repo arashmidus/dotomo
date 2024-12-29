@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, SafeAreaView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, SafeAreaView, TouchableOpacity, Alert, Platform, Linking } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { Picker } from '@react-native-picker/picker';
@@ -41,19 +41,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   section: {
-    marginVertical: 8,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     marginLeft: 16,
     marginBottom: 8,
-    marginTop: 16,
     color: 'rgba(255, 255, 255, 0.95)',
   },
   setting: {
@@ -61,10 +67,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   settingLabel: {
     fontSize: 16,
+    fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.9)',
   },
   picker: {
@@ -76,9 +83,9 @@ const styles = StyleSheet.create({
   },
   backButtonContainer: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
+    top: Platform.OS === 'ios' ? 60 : 20,
+    left: 16,
+    right: 16,
     zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
@@ -101,21 +108,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   scrollContent: {
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 120 : 80,
+    paddingBottom: 32,
   },
   infoText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.6)',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
+    lineHeight: 20,
   },
   timeInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 12,
     padding: 12,
+    minWidth: 100,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  timeText: {
     color: '#fff',
-    width: 120,
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timeSeparator: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    marginHorizontal: 12,
+    fontWeight: '500',
   },
   badge: {
     backgroundColor: '#007AFF',
@@ -139,6 +160,46 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#fff',
+  },
+  supportSection: {
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+  },
+  heartIcon: {
+    marginBottom: 16,
+  },
+  supportTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  supportText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  donateButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  donateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
@@ -414,14 +475,14 @@ export function SettingsScreen() {
                 style={styles.timeInput}
                 onPress={() => showTimePicker('bedTime')}
               >
-                <Text style={styles.settingLabel}>{timeSettings.bedTime}</Text>
+                <Text style={styles.timeText}>{timeSettings.bedTime}</Text>
               </TouchableOpacity>
-              <Text style={[styles.settingLabel, { marginHorizontal: 8 }]}>to</Text>
+              <Text style={styles.timeSeparator}>to</Text>
               <TouchableOpacity 
                 style={styles.timeInput}
                 onPress={() => showTimePicker('wakeUpTime')}
               >
-                <Text style={styles.settingLabel}>{timeSettings.wakeUpTime}</Text>
+                <Text style={styles.timeText}>{timeSettings.wakeUpTime}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -433,24 +494,24 @@ export function SettingsScreen() {
                 style={styles.timeInput}
                 onPress={() => showTimePicker('workStartTime')}
               >
-                <Text style={styles.settingLabel}>{timeSettings.workStartTime}</Text>
+                <Text style={styles.timeText}>{timeSettings.workStartTime}</Text>
               </TouchableOpacity>
-              <Text style={[styles.settingLabel, { marginHorizontal: 8 }]}>to</Text>
+              <Text style={styles.timeSeparator}>to</Text>
               <TouchableOpacity 
                 style={styles.timeInput}
                 onPress={() => showTimePicker('workEndTime')}
               >
-                <Text style={styles.settingLabel}>{timeSettings.workEndTime}</Text>
+                <Text style={styles.timeText}>{timeSettings.workEndTime}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.setting}>
+          {/* <View style={styles.setting}>
             <Text style={styles.settingLabel}>Preferred Notification Times</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>Coming Soon</Text>
             </View>
-          </View>
+          </View> */}
         </View>
 
         {/* <View style={styles.section}>
@@ -484,6 +545,28 @@ export function SettingsScreen() {
             </Picker>
           </View>
         </View> */}
+
+        <View style={styles.supportSection}>
+          <MaterialIcons 
+            name="favorite" 
+            size={32} 
+            color="#FF3B30" 
+            style={styles.heartIcon}
+          />
+          <Text style={styles.supportTitle}>Made with Love</Text>
+          <Text style={styles.supportText}>
+            This app is completely free and we collect absolutely no data from our users. 
+            We believe in creating tools that respect your privacy while helping you stay productive.
+          </Text>
+          <TouchableOpacity 
+            style={styles.donateButton}
+            onPress={() => Linking.openURL('https://ko-fi.com/dotomo')}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="favorite-border" size={20} color="#fff" />
+            <Text style={styles.donateButtonText}>Support the App</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {isSaving && (

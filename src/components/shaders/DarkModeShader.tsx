@@ -86,8 +86,8 @@ export function DarkModeShader() {
 
     // Set up geometry
     const vertices = new Float32Array([
-      -1.0, -1.4,  // Bottom left - extended much further down
-       1.0, -1.4,  // Bottom right - extended much further down
+      -1.0, -2.0,  // Bottom left - extended even further down
+       1.0, -2.0,  // Bottom right - extended even further down
       -1.0,  1.0,  // Top left
        1.0,  1.0,  // Top right
     ]);
@@ -119,8 +119,8 @@ export function DarkModeShader() {
       style={[
         StyleSheet.absoluteFill,
         { 
-          bottom: -50,  // Increased negative bottom margin
-          height: '110%'  // Extend the height beyond the screen
+          bottom: -100,  // Increased negative bottom margin to cover home indicator
+          height: '120%'  // Increased height to ensure full coverage
         }
       ]}
       onContextCreate={onContextCreate}

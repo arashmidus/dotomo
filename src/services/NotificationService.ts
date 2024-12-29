@@ -129,8 +129,8 @@ export class NotificationService {
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: `[Test] Task Reminder: ${todo.title}`,
-          body: `[Test] ${reminder}`,
+          title: `Task Reminder: ${todo.title}`,
+          body: `${reminder}`,
           data: { 
             todoId: todo.id,
             timing: timing.reasoning,
