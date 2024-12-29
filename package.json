@@ -45,7 +45,8 @@
     "react-native-svg": "15.8.0",
     "react-native-webgl": "^0.8.0",
     "zod": "^3.24.1",
-    "expo-intent-launcher": "~12.0.1"
+    "expo-intent-launcher": "~12.0.1",
+    "expo-router": "~4.0.15"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

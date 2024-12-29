@@ -27,7 +27,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.anonymous.todoapp</string>
+          <string>com.yourusername.todoapp</string>
         </array>
       </dict>
     </array>
@@ -45,11 +45,7 @@
       <true/>
     </dict>
     <key>NSFaceIDUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to use Face ID.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access the microphone</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access speech recognition</string>
+    <string>Allow $(PRODUCT_NAME) to use Face ID to authenticate.</string>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>

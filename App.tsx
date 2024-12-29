@@ -4,10 +4,8 @@ import { View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { TodoProvider } from './src/contexts/TodoContext';
 import { LoadingSpinner } from './src/components/LoadingSpinner';
-import { AuthProvider } from './src/contexts/AuthContext';
 import { SettingsProvider } from './src/contexts/SettingsContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { SecureView } from './src/components/SecureView';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { LogBox } from 'react-native';
@@ -50,15 +48,11 @@ export default function App() {
                 }}
                 useSuspense
               >
-                <AuthProvider>
-                  <SettingsProvider>
-                    <TodoProvider>
-                      <SecureView>
-                        <AppNavigator />
-                      </SecureView>
-                    </TodoProvider>
-                  </SettingsProvider>
-                </AuthProvider>
+                <SettingsProvider>
+                  <TodoProvider>
+                    <AppNavigator />
+                  </TodoProvider>
+                </SettingsProvider>
               </SQLiteProvider>
             </Suspense>
           </SafeAreaView>

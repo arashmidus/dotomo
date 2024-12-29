@@ -125,6 +125,13 @@ export function AppNavigator() {
             },
             cardOverlayEnabled: false,
             detachPreviousScreen: false,
+            presentation: 'modal',
+            contentStyle: {
+              backgroundColor: 'transparent',
+            },
+            // Override safe area for modals
+            safeAreaInsets: { bottom: 0 },
+            // Custom animation for modals
             cardStyleInterpolator: ({ current: { progress } }) => ({
               cardStyle: {
                 transform: [
@@ -167,7 +174,9 @@ export function AppNavigator() {
             options={{
               presentation: 'card',
               headerShown: false,
-              cardStyle: { backgroundColor: 'transparent' }
+              cardStyle: { backgroundColor: 'transparent' },
+              // Specifically override safe area for this screen
+              safeAreaInsets: { bottom: 0 }
             }}
           />
         </Stack.Navigator>

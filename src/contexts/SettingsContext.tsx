@@ -15,6 +15,11 @@ interface AppSettings {
   biometricEnabled: boolean;
   biometricTimeout: number;
   appLockEnabled: boolean;
+  useFaceId: boolean;
+  wakeUpTime: string;
+  bedTime: string;
+  workStartTime: string;
+  workEndTime: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -29,6 +34,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   biometricEnabled: false,
   biometricTimeout: 0,
   appLockEnabled: false,
+  useFaceId: false,
+  wakeUpTime: '07:00',
+  bedTime: '22:00',
+  workStartTime: '09:00',
+  workEndTime: '17:00',
 };
 
 interface SettingsContextType {
@@ -49,24 +59,36 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   async function loadSettings() {
     try {
+      console.log('[SettingsContext] Loading settings...');
       const storedSettings = await AsyncStorage.getItem('app_settings');
+      console.log('[SettingsContext] Stored settings:', storedSettings);
+      
       if (storedSettings) {
-        setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) });
+        const parsedSettings = JSON.parse(storedSettings);
+        console.log('[SettingsContext] Merged settings:', {
+          ...DEFAULT_SETTINGS,
+          ...parsedSettings
+        });
+        setSettings({ ...DEFAULT_SETTINGS, ...parsedSettings });
+      } else {
+        console.log('[SettingsContext] No stored settings, using defaults');
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('[SettingsContext] Failed to load settings:', error);
     } finally {
       setIsLoading(false);
     }
   }
 
   async function updateSettings(newSettings: Partial<AppSettings>) {
+    const updatedSettings = { ...settings, ...newSettings };
+    setSettings(updatedSettings);
+    
     try {
-      const updatedSettings = { ...settings, ...newSettings };
       await AsyncStorage.setItem('app_settings', JSON.stringify(updatedSettings));
-      setSettings(updatedSettings);
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      setSettings(settings);
+      console.error('[SettingsContext] Failed to save settings:', error);
       throw error;
     }
   }

@@ -74,7 +74,7 @@ class LoggingServiceClass {
       const formattedData = JSON.stringify(logData.data, null, 2);
       switch (level) {
         case 'ERROR':
-          console.error(`[${timestamp}] ${message}:`, formattedData);
+          console.error(`[${timestamp}] ${message}`);
           break;
         case 'WARN':
           console.warn(`[${timestamp}] ${message}:`, formattedData);

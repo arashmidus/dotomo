@@ -2,6 +2,7 @@ import { Todo } from '../contexts/TodoContext';
 import { LoggingService } from './LoggingService';
 import { format } from 'date-fns';
 import Constants from 'expo-constants';
+import { AppSettings } from '../contexts/SettingsContext';
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
 const MAX_RETRIES = 3;
@@ -24,7 +25,23 @@ interface TimingRecommendation {
   confidence: number; // 0-1
 }
 
-function createTimingPrompt(todo: Todo): string {
+function createTimingPrompt(todo: Todo, settings?: AppSettings): string {
+  // Default schedule if settings are not provided
+  const defaultSettings = {
+    wakeUpTime: "07:00",
+    bedTime: "22:00",
+    workStartTime: "09:00",
+    workEndTime: "17:00"
+  };
+
+  // Use settings if provided, otherwise fall back to defaults
+  const schedule = settings || defaultSettings;
+
+  const formatTimeValue = (time: string) => {
+    if (!time) return 'Not set';
+    return time.includes(':') ? time : `${time}:00`;
+  };
+
   return `Analyze this task and recommend the optimal notification time for tomorrow:
 Title: ${todo.title}
 Description: ${todo.description || 'N/A'}
@@ -32,9 +49,14 @@ Due Date: ${format(todo.dueDate, 'PPP')}
 Priority: ${todo.priority}
 Tags: ${todo.tags.join(', ') || 'none'}
 
+User Schedule:
+- Wake up time: ${formatTimeValue(schedule.wakeUpTime)}
+- Bed time: ${formatTimeValue(schedule.bedTime)}
+- Work hours: ${formatTimeValue(schedule.workStartTime)} to ${formatTimeValue(schedule.workEndTime)}
+
 Consider:
 1. Task urgency and importance
-2. Typical working hours (9am-5pm)
+2. User's specified working hours
 3. Task complexity and preparation needs
 4. Human productivity patterns
 
@@ -169,15 +191,10 @@ Priority: ${todo.priority || 'medium'}`,
   }
 }
 
-export async function generateTimingRecommendation(todo: Todo): Promise<TimingRecommendation> {
+export async function generateTimingRecommendation(todo: Todo, settings?: AppSettings): Promise<TimingRecommendation> {
   console.log('\n🔍 LLM Service - Generating Timing Recommendation');
-  console.log('📥 Received Todo:', {
-    title: todo.title,
-    dueDate: format(todo.dueDate, 'PPP HH:mm'),
-    priority: todo.priority,
-    tags: todo.tags
-  });
-
+  console.log('📥 User Schedule Settings:', settings || 'Using default schedule');
+  
   const apiKey = Constants.expoConfig?.extra?.openAiKey;
   
   if (!apiKey) {
@@ -203,7 +220,7 @@ export async function generateTimingRecommendation(todo: Todo): Promise<TimingRe
           },
           {
             role: 'user',
-            content: createTimingPrompt(todo),
+            content: createTimingPrompt(todo, settings),
           },
         ],
         max_tokens: 150,

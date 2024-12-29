@@ -13,42 +13,30 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
+      "bundleIdentifier": "com.yourusername.todoapp",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to use Face ID for secure and quick access to your account."
-      },
-      "bundleIdentifier": "com.anonymous.todoapp"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "permissions": [
-        "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT",
-        "android.permission.RECORD_AUDIO"
-      ],
-      "package": "com.anonymous.todoapp"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+        "NSFaceIDUsageDescription": "We need to use Face ID to securely authenticate you"
+      }
     },
     "plugins": [
-      "expo-sqlite",
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for secure and quick access to your account."
-        }
-      ],
-      [
-        "@react-native-voice/voice",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access the microphone",
-          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to access speech recognition"
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID to authenticate."
         }
       ]
-    ]
+    ],
+    "_internal": {
+      "ios": {
+        "useFrameworks": "static"
+      }
+    },
+    "android": {
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
+      "package": "com.anonymous.todoapp"
+    }
   }
 }

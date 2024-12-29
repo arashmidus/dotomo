@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, SafeAreaView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { Picker } from '@react-native-picker/picker';
@@ -6,7 +6,9 @@ import { DarkModeShader } from '../components/shaders/DarkModeShader';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as LocalAuthentication from 'expo-local-authentication';
+import { format } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type RootStackParamList = {
   Home: undefined;
@@ -14,6 +16,19 @@ type RootStackParamList = {
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'SettingsScreen'>;
+
+type TimeSettings = {
+  wakeUpTime: string;
+  bedTime: string;
+  workStartTime: string;
+  workEndTime: string;
+};
+
+type TimePickerState = {
+  show: boolean;
+  mode: 'date' | 'time';
+  current: keyof TimeSettings | null;
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -131,8 +146,17 @@ export function SettingsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { settings, updateSettings, isLoading } = useSettings();
   const [isSaving, setIsSaving] = useState(false);
-  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
-  const [biometricType, setBiometricType] = useState<string>('');
+  const [timeSettings, setTimeSettings] = useState<TimeSettings>({
+    wakeUpTime: settings.wakeUpTime || '07:00',
+    bedTime: settings.bedTime || '22:00',
+    workStartTime: settings.workStartTime || '09:00',
+    workEndTime: settings.workEndTime || '17:00',
+  });
+  const [timePicker, setTimePicker] = useState<TimePickerState>({
+    show: false,
+    mode: 'time',
+    current: null
+  });
 
   const dynamicStyles = {
     sectionTitle: {
@@ -143,17 +167,18 @@ export function SettingsScreen() {
     },
   };
 
-  async function handleSettingChange<K extends keyof typeof settings>(
-    key: K,
-    value: typeof settings[K]
-  ) {
+  const handleSettingChange = async (key: keyof AppSettings, value: any) => {
     try {
+      console.log('[Settings] Updating setting:', key, 'to:', value);
       setIsSaving(true);
       await updateSettings({ [key]: value });
+      console.log('[Settings] Successfully updated:', key);
+    } catch (error) {
+      console.error('[Settings] Error updating setting:', error);
     } finally {
       setIsSaving(false);
     }
-  }
+  };
 
   const handleBack = () => {
     requestAnimationFrame(() => {
@@ -161,18 +186,188 @@ export function SettingsScreen() {
     });
   };
 
-  useEffect(() => {
-    (async () => {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      setIsBiometricSupported(compatible);
+  const handleTimeChange = async (key: keyof TimeSettings, value: string) => {
+    try {
+      // Validate work start time is after wake-up time
+      if (key === 'workStartTime') {
+        const [wakeHours, wakeMinutes] = timeSettings.wakeUpTime.split(':');
+        const [startHours, startMinutes] = value.split(':');
+        
+        const wakeTime = parseInt(wakeHours) * 60 + parseInt(wakeMinutes);
+        const startTime = parseInt(startHours) * 60 + parseInt(startMinutes);
 
-      if (compatible) {
-        const type = await LocalAuthentication.supportedAuthenticationTypesAsync();
-        // Type 2 is FaceID
-        setBiometricType(type.includes(2) ? 'Face ID' : 'Touch ID');
+        if (startTime <= wakeTime) {
+          throw new Error('Work start time must be at least one minute after wake-up time');
+        }
       }
-    })();
-  }, []);
+
+      // Validate times before saving
+      if (key === 'wakeUpTime' || key === 'bedTime') {
+        const [bedHours, bedMinutes] = (key === 'bedTime' ? value : timeSettings.bedTime).split(':');
+        const [wakeHours, wakeMinutes] = (key === 'wakeUpTime' ? value : timeSettings.wakeUpTime).split(':');
+        
+        const bedTime = parseInt(bedHours) * 60 + parseInt(bedMinutes);
+        const wakeTime = parseInt(wakeHours) * 60 + parseInt(wakeMinutes);
+        
+        // Normalize times for comparison
+        const normalizedWakeTime = wakeTime;
+        const normalizedBedTime = bedTime < wakeTime ? bedTime + (24 * 60) : bedTime;
+        
+        // Calculate duration in hours
+        const durationInHours = (normalizedWakeTime - (normalizedBedTime - 24 * 60)) / 60;
+
+        if (durationInHours > 16) {
+          throw new Error('Sleep duration cannot be more than 16 hours');
+        }
+
+        // For wake-up time, validate against work start time
+        if (key === 'wakeUpTime') {
+          const [startHours, startMinutes] = timeSettings.workStartTime.split(':');
+          const startTime = parseInt(startHours) * 60 + parseInt(startMinutes);
+          
+          if (wakeTime >= startTime) {
+            throw new Error('Wake-up time must be at least one minute before work start time');
+          }
+        }
+
+        if ((key === 'wakeUpTime' && normalizedWakeTime >= normalizedBedTime) ||
+            (key === 'bedTime' && normalizedBedTime <= normalizedWakeTime)) {
+          throw new Error('Invalid time combination');
+        }
+      }
+
+      setTimeSettings(prev => ({ ...prev, [key]: value }));
+      await handleSettingChange(key, value);
+    } catch (error) {
+      console.error('[Settings] Error updating time setting:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update time setting');
+    }
+  };
+
+  const showTimePicker = (setting: keyof TimeSettings) => {
+    setTimePicker({
+      show: true,
+      mode: 'time',
+      current: setting
+    });
+  };
+
+  const onTimeChange = (event: any, selectedDate?: Date) => {
+    setTimePicker(prev => ({ ...prev, show: false }));
+
+    if (event.type === 'dismissed' || !selectedDate || !timePicker.current) {
+      return;
+    }
+
+    const timeString = format(selectedDate, 'HH:mm');
+    handleTimeChange(timePicker.current, timeString);
+  };
+
+  const handleTimePickerConfirm = (selectedDate: Date) => {
+    if (!timePicker.current) return;
+    
+    const timeString = format(selectedDate, 'HH:mm');
+
+    // Work hours validation
+    if (timePicker.current === 'workEndTime') {
+      const [startHours, startMinutes] = timeSettings.workStartTime.split(':');
+      const startTime = parseInt(startHours) * 60 + parseInt(startMinutes);
+      const [endHours, endMinutes] = timeString.split(':');
+      const endTime = parseInt(endHours) * 60 + parseInt(endMinutes);
+
+      if (endTime <= startTime) {
+        Alert.alert(
+          'Invalid Time',
+          'Work end time must be after work start time',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+
+    // Validate work start time is after wake-up time
+    if (timePicker.current === 'workStartTime') {
+      const [wakeHours, wakeMinutes] = timeSettings.wakeUpTime.split(':');
+      const [startHours, startMinutes] = timeString.split(':');
+      
+      const wakeTime = parseInt(wakeHours) * 60 + parseInt(wakeMinutes);
+      const startTime = parseInt(startHours) * 60 + parseInt(startMinutes);
+
+      if (startTime <= wakeTime) {
+        Alert.alert(
+          'Invalid Time',
+          'Work start time must be at least one minute after wake-up time',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+
+    // Sleep schedule validation
+    if (timePicker.current === 'wakeUpTime' || timePicker.current === 'bedTime') {
+      const [bedHours, bedMinutes] = (timePicker.current === 'bedTime' ? timeString : timeSettings.bedTime).split(':');
+      const [wakeHours, wakeMinutes] = (timePicker.current === 'wakeUpTime' ? timeString : timeSettings.wakeUpTime).split(':');
+      
+      const bedTime = parseInt(bedHours) * 60 + parseInt(bedMinutes);
+      const wakeTime = parseInt(wakeHours) * 60 + parseInt(wakeMinutes);
+      
+      // Convert times to a 24-hour cycle where we assume:
+      // - Bedtime is in the evening (PM)
+      // - Wake time is in the morning (AM)
+      const normalizedWakeTime = wakeTime;
+      const normalizedBedTime = bedTime < wakeTime ? bedTime + (24 * 60) : bedTime;
+      
+      // Calculate duration in hours
+      const durationInHours = (normalizedWakeTime - (normalizedBedTime - 24 * 60)) / 60;
+
+      if (durationInHours > 16) {
+        Alert.alert(
+          'Invalid Sleep Duration',
+          'Sleep duration cannot be more than 16 hours',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // For wake-up time, also validate against work start time
+      if (timePicker.current === 'wakeUpTime') {
+        const [startHours, startMinutes] = timeSettings.workStartTime.split(':');
+        const startTime = parseInt(startHours) * 60 + parseInt(startMinutes);
+        
+        if (wakeTime >= startTime) {
+          Alert.alert(
+            'Invalid Time',
+            'Wake-up time must be at least one minute before work start time',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+
+      if (timePicker.current === 'wakeUpTime' && normalizedWakeTime >= normalizedBedTime) {
+        Alert.alert(
+          'Invalid Time',
+          'Wake-up time must be after bedtime',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      if (timePicker.current === 'bedTime' && normalizedBedTime <= normalizedWakeTime) {
+        Alert.alert(
+          'Invalid Time',
+          'Bedtime must be before wake-up time',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+
+    handleTimeChange(timePicker.current, timeString);
+    setTimePicker(prev => ({ ...prev, show: false }));
+  };
+
+  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return (
@@ -206,72 +401,6 @@ export function SettingsScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <View style={styles.setting}>
-            <Text style={styles.settingLabel}>Enable Notifications</Text>
-            <Switch
-              value={settings.notifications.enabled}
-              onValueChange={(value) =>
-                handleSettingChange('notifications', {
-                  ...settings.notifications,
-                  enabled: value,
-                })
-              }
-            />
-          </View>
-
-          {settings.notifications.enabled && (
-            <>
-              <View style={styles.setting}>
-                <Text style={styles.settingLabel}>Reminder Timing (hours)</Text>
-                <Picker
-                  selectedValue={settings.notifications.reminderTiming}
-                  style={styles.picker}
-                  onValueChange={(value) =>
-                    handleSettingChange('notifications', {
-                      ...settings.notifications,
-                      reminderTiming: value,
-                    })
-                  }
-                >
-                  <Picker.Item label="30 minutes" value={0.5} />
-                  <Picker.Item label="1 hour" value={1} />
-                  <Picker.Item label="2 hours" value={2} />
-                  <Picker.Item label="4 hours" value={4} />
-                  <Picker.Item label="1 day" value={24} />
-                </Picker>
-              </View>
-
-              <View style={styles.setting}>
-                <Text style={styles.settingLabel}>Sound</Text>
-                <Switch
-                  value={settings.notifications.sound}
-                  onValueChange={(value) =>
-                    handleSettingChange('notifications', {
-                      ...settings.notifications,
-                      sound: value,
-                    })
-                  }
-                />
-              </View>
-
-              <View style={styles.setting}>
-                <Text style={styles.settingLabel}>Vibration</Text>
-                <Switch
-                  value={settings.notifications.vibration}
-                  onValueChange={(value) =>
-                    handleSettingChange('notifications', {
-                      ...settings.notifications,
-                      vibration: value,
-                    })
-                  }
-                />
-              </View>
-            </>
-          )}
-        </View> */}
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personalization</Text>
           <Text style={styles.infoText}>
@@ -279,29 +408,40 @@ export function SettingsScreen() {
           </Text>
 
           <View style={styles.setting}>
-            <Text style={styles.settingLabel}>Wake-up Time</Text>
-            <View style={styles.timeInput}>
-              <Text style={styles.settingLabel}>07:00</Text>
-            </View>
-          </View>
-
-          <View style={styles.setting}>
-            <Text style={styles.settingLabel}>Bedtime</Text>
-            <View style={styles.timeInput}>
-              <Text style={styles.settingLabel}>22:00</Text>
+            <Text style={styles.settingLabel}>Sleep Schedule</Text>
+            <View style={[styles.setting, { paddingHorizontal: 0 }]}>
+              <TouchableOpacity 
+                style={styles.timeInput}
+                onPress={() => showTimePicker('bedTime')}
+              >
+                <Text style={styles.settingLabel}>{timeSettings.bedTime}</Text>
+              </TouchableOpacity>
+              <Text style={[styles.settingLabel, { marginHorizontal: 8 }]}>to</Text>
+              <TouchableOpacity 
+                style={styles.timeInput}
+                onPress={() => showTimePicker('wakeUpTime')}
+              >
+                <Text style={styles.settingLabel}>{timeSettings.wakeUpTime}</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.setting}>
             <Text style={styles.settingLabel}>Work Hours</Text>
             <View style={[styles.setting, { paddingHorizontal: 0 }]}>
-              <View style={styles.timeInput}>
-                <Text style={styles.settingLabel}>09:00</Text>
-              </View>
+              <TouchableOpacity 
+                style={styles.timeInput}
+                onPress={() => showTimePicker('workStartTime')}
+              >
+                <Text style={styles.settingLabel}>{timeSettings.workStartTime}</Text>
+              </TouchableOpacity>
               <Text style={[styles.settingLabel, { marginHorizontal: 8 }]}>to</Text>
-              <View style={styles.timeInput}>
-                <Text style={styles.settingLabel}>17:00</Text>
-              </View>
+              <TouchableOpacity 
+                style={styles.timeInput}
+                onPress={() => showTimePicker('workEndTime')}
+              >
+                <Text style={styles.settingLabel}>{timeSettings.workEndTime}</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -344,107 +484,148 @@ export function SettingsScreen() {
             </Picker>
           </View>
         </View> */}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
-          
-          {isBiometricSupported ? (
-            <>
-              <View style={styles.setting}>
-                <View>
-                  <Text style={styles.settingLabel}>Enable {biometricType}</Text>
-                  <Text style={styles.infoText}>
-                    Use {biometricType} to quickly access the app
-                  </Text>
-                </View>
-                <Switch
-                  value={settings.biometricEnabled}
-                  onValueChange={async (value) => {
-                    if (value) {
-                      try {
-                        // First check if biometrics are available
-                        const available = await LocalAuthentication.isEnrolledAsync();
-                        if (!available) {
-                          Alert.alert(
-                            'Biometric Not Set Up',
-                            `Please set up ${biometricType} in your device settings first.`
-                          );
-                          return;
-                        }
-
-                        // Try to authenticate
-                        const result = await LocalAuthentication.authenticateAsync({
-                          promptMessage: `Enable ${biometricType}`,
-                          disableDeviceFallback: true,
-                          fallbackLabel: 'Use passcode'
-                        });
-
-                        console.log('Authentication result:', result); // For debugging
-
-                        if (result.success) {
-                          await handleSettingChange('biometricEnabled', value);
-                        } else {
-                          // Authentication failed
-                          Alert.alert(
-                            'Authentication Failed',
-                            'Please try again.'
-                          );
-                        }
-                      } catch (error) {
-                        console.error('Biometric error:', error);
-                        Alert.alert(
-                          'Error',
-                          'There was an error setting up biometric authentication.'
-                        );
-                      }
-                    } else {
-                      await handleSettingChange('biometricEnabled', false);
-                    }
-                  }}
-                />
-              </View>
-
-              {settings.biometricEnabled && (
-                <View style={styles.setting}>
-                  <Text style={styles.settingLabel}>Require After</Text>
-                  <Picker
-                    selectedValue={settings.biometricTimeout}
-                    style={styles.picker}
-                    onValueChange={(value) => 
-                      handleSettingChange('biometricTimeout', value)
-                    }
-                  >
-                    <Picker.Item label="Immediately" value={0} />
-                    <Picker.Item label="1 minute" value={1} />
-                    <Picker.Item label="5 minutes" value={5} />
-                    <Picker.Item label="1 hour" value={60} />
-                    <Picker.Item label="4 hours" value={240} />
-                  </Picker>
-                </View>
-              )}
-            </>
-          ) : (
-            <View style={styles.setting}>
-              <Text style={[styles.settingLabel, { opacity: 0.7 }]}>
-                Biometric authentication not available on this device
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.setting}>
-            <Text style={styles.settingLabel}>App Lock</Text>
-            <Switch
-              value={settings.appLockEnabled}
-              onValueChange={(value) => handleSettingChange('appLockEnabled', value)}
-            />
-          </View>
-        </View>
       </ScrollView>
 
       {isSaving && (
         <View style={styles.savingOverlay}>
           <ActivityIndicator color="#fff" />
           <Text style={styles.savingText}>Saving...</Text>
+        </View>
+      )}
+
+      {timePicker.show && (
+        <View style={{
+          position: 'absolute',
+          top: 540,
+          left: 0,
+          right: 0,
+          bottom: -insets.bottom,
+          zIndex: 1000,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <TouchableOpacity 
+            style={{
+              position: 'absolute',
+              top: 24,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.0)',
+            }}
+            onPress={() => setTimePicker(prev => ({ ...prev, show: false }))}
+            activeOpacity={1}
+          />
+
+          <View style={{
+            width: '90%',
+            backgroundColor: '#1C1C1E',
+            borderRadius: 16,
+            overflow: 'hidden',
+            shadowColor: "#000",
+            shadowOffset: {
+              width: 0,
+              height: 2,
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: 'rgba(255,255,255,0.1)',
+            }}>
+              <TouchableOpacity
+                onPress={() => setTimePicker(prev => ({ ...prev, show: false }))}
+                style={{ minWidth: 60 }}
+              >
+                <Text style={{
+                  color: '#007AFF',
+                  fontSize: 17,
+                }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              
+              <Text style={{
+                color: '#FFFFFF',
+                fontSize: 17,
+                fontWeight: '600',
+              }}>
+                {(() => {
+                  switch(timePicker.current) {
+                    case 'wakeUpTime': return 'Wake-up Time';
+                    case 'bedTime': return 'Bedtime';
+                    case 'workStartTime': return 'Work Start';
+                    case 'workEndTime': return 'Work End';
+                    default: return 'Select Time';
+                  }
+                })()}
+              </Text>
+              
+              <TouchableOpacity
+                onPress={() => {
+                  const [hours, minutes] = timeSettings[timePicker.current!].split(':');
+                  const date = new Date();
+                  date.setHours(parseInt(hours, 10));
+                  date.setMinutes(parseInt(minutes, 10));
+                  handleTimePickerConfirm(date);
+                }}
+                style={{ minWidth: 60, alignItems: 'flex-end' }}
+              >
+                <Text style={{
+                  color: '#007AFF',
+                  fontSize: 17,
+                  fontWeight: '600',
+                }}>
+                  Done
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <DateTimePicker
+              value={(() => {
+                const [hours, minutes] = (timeSettings[timePicker.current!] || '00:00').split(':');
+                const date = new Date();
+                date.setHours(parseInt(hours, 10));
+                date.setMinutes(parseInt(minutes, 10));
+                return date;
+              })()}
+              minimumDate={(() => {
+                if (timePicker.current === 'workEndTime') {
+                  const [hours, minutes] = timeSettings.workStartTime.split(':');
+                  const date = new Date();
+                  date.setHours(parseInt(hours, 10));
+                  date.setMinutes(parseInt(minutes, 10));
+                  return date;
+                }
+                return undefined;
+              })()}
+              mode={timePicker.mode}
+              is24Hour={true}
+              display="spinner"
+              onChange={(event, date) => {
+                if (date && event.type !== 'dismissed') {
+                  const timeString = format(date, 'HH:mm');
+                  setTimeSettings(prev => ({
+                    ...prev,
+                    [timePicker.current!]: timeString
+                  }));
+                }
+              }}
+              textColor="#FFFFFF"
+              themeVariant="dark"
+              style={{
+                height: 200,
+                backgroundColor: '#1C1C1E',
+              }}
+            />
+          </View>
         </View>
       )}
     </SafeAreaView>
